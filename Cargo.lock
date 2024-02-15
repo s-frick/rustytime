@@ -670,7 +670,7 @@ dependencies = [
 
 [[package]]
 name = "rustytime"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "chrono",
  "clap",
@@ -683,6 +683,7 @@ dependencies = [
  "serde_yaml",
  "sha2 0.9.9",
  "shellexpand",
+ "toml",
 ]
 
 [[package]]
