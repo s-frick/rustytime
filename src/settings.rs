@@ -8,7 +8,16 @@ pub struct Rustytime {
     pub home: String,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+impl Default for Rustytime {
+    fn default() -> Self {
+        let home = shellexpand::full("~/.config/rustytime")
+            .unwrap()
+            .to_string();
+        Self { home }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 #[allow(unused)]
 pub struct Settings {
     pub rustytime: Rustytime,
