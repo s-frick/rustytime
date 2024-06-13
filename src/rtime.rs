@@ -1,17 +1,15 @@
-use std::{
-    fs::{self, File, OpenOptions},
-    io::{self, Read, Write},
-};
-
-use chrono::{NaiveDateTime, Utc};
-use serde::{Deserialize, Serialize};
-
 use crate::{
     cli::{Commands, Format},
     settings::Settings,
 };
+use chrono::{NaiveDateTime, Utc};
+use core::panic;
+use serde::{Deserialize, Serialize};
+use std::{
+    fs::{self, File, OpenOptions},
+    io::{self, Read, Write},
+};
 extern crate sha2; // 0.9.1
-
 use sha2::{Digest, Sha256}; // 0.9.1
 
 const FRAMES_PATH: &str = "/data/frames";
@@ -80,19 +78,54 @@ impl RTime {
     }
     pub fn start(&self, cmd: Commands) {
         if let Commands::Start { at, tags } = cmd {
+            if tags.len() == 0 {
+                eprintln!("ERRO: At least one tag is required.");
+                return;
+            }
             let home = self.settings.rustytime.home.clone();
             self.stop(at);
 
-            let start = at.unwrap_or_else(|| Utc::now().naive_local());
-            let new_state = State { start, tags };
-            let new_state_str = serde_json::to_string(&new_state).unwrap();
-            let mut file = File::create(format!("{}{}", home, STATE_PATH)).unwrap();
-            file.write_all(new_state_str.as_bytes()).unwrap();
-            println!(
-                "Starting frame [{}] at {}\n",
-                new_state.tags.join(" "),
-                start
-            );
+            let start_1 = at.unwrap_or_else(|| Utc::now().naive_local());
+            let new_state = State {
+                start: start_1,
+                tags,
+            };
+
+            let new_state_str = serde_json::to_string(&new_state);
+            match new_state_str {
+                Err(serde_json::Error { .. }) => {
+                    eprintln!("ERRO: Failed serializing state");
+                }
+
+                Ok(state_str) => {
+                    let path = format!("{}{}", home, STATE_PATH);
+                    let prefix = match std::path::Path::new(path.as_str()).parent() {
+                        Some(prefix) => prefix,
+                        None => panic!("ERRO: Failed getting parent path for: {}", path),
+                    };
+                    if let Err(e) = std::fs::create_dir_all(prefix) {
+                        panic!("ERRO: Failed creating parent path: {}", e);
+                    };
+
+                    let _ = match fs::OpenOptions::new()
+                        .create_new(true)
+                        .write(true)
+                        .open(format!("{}{}", home, STATE_PATH))
+                        .map(|mut file| file.write_all(state_str.as_bytes()))
+                    {
+                        Ok(f) => f,
+                        Err(e) => {
+                            panic!("ERRO: Failed opening state file: {}", e);
+                        }
+                    };
+
+                    println!(
+                        "Starting frame [{}] at {}\n",
+                        new_state.tags.join(" "),
+                        new_state.start
+                    );
+                }
+            }
         }
     }
 
@@ -119,8 +152,14 @@ impl RTime {
         }
     }
 
-    pub fn log(&self, format: Format) {
-        match self.frames.as_slice() {
+    pub fn log(&self, format: Format, from: Option<NaiveDateTime>, to: Option<NaiveDateTime>) {
+        match self
+            .frames
+            .iter()
+            .filter(|f| from.map_or(true, |t| f.start >= t) && to.map_or(true, |t| f.end <= t))
+            .collect::<Vec<_>>()
+            .as_slice()
+        {
             [] => println!("No frames tracked."),
             xs @ [..] => match format {
                 Format::Pretty => todo!(),
@@ -131,17 +170,17 @@ impl RTime {
         }
     }
 
-    fn log_json(&self, xs: &[Frame]) {
+    fn log_json(&self, xs: &[&Frame]) {
         let str = serde_json::to_string(&xs).unwrap();
         println!("{}", str)
     }
 
-    fn log_yaml(&self, xs: &[Frame]) {
+    fn log_yaml(&self, xs: &[&Frame]) {
         let str = serde_yaml::to_string(&xs).unwrap();
         println!("{}", str)
     }
 
-    fn log_csv(&self, xs: &[Frame]) {
+    fn log_csv(&self, xs: &[&Frame]) {
         let mut wtr = csv::Writer::from_writer(io::stdout());
         wtr.write_record(["id", "start", "end", "tags"]).unwrap();
         xs.iter().for_each(|f| {

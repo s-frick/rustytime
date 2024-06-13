@@ -1,7 +1,7 @@
 use core::fmt;
 use std::error::Error;
 
-use chrono::{NaiveDateTime, NaiveTime, ParseError, Utc};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime, ParseError, Utc};
 use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Debug, Parser)]
@@ -26,9 +26,14 @@ pub enum Commands {
     },
     Status,
     Log {
-        #[arg(short, long, num_args = 0..=1, value_name="FORMAT", default_value_t = Format::Pretty, default_missing_value = "pretty", value_enum)]
+        #[arg(long, num_args = 0..=1, value_name="FORMAT", default_value_t = Format::Json, default_missing_value = "json", value_enum)]
         format: Format,
+        #[arg(value_parser = parse_date, short, long)]
+        from: Option<NaiveDateTime>,
+        #[arg(value_parser = parse_date, short, long)]
+        to: Option<NaiveDateTime>,
     },
+    Version,
 }
 
 #[derive(ValueEnum, Debug, Copy, Clone, PartialEq, Eq)]
@@ -77,6 +82,10 @@ fn parse_date(arg: &str) -> Result<NaiveDateTime, ParseError> {
     let today = Utc::now().naive_local().date();
     // TODO: add more formats
     NaiveDateTime::parse_from_str(arg, "%Y-%m-%d %H:%M:%S")
+        .or(NaiveDate::parse_from_str(arg, "%d.%m.%Y")
+            .map(|d| d.and_time(NaiveTime::from_hms(0, 0, 0))))
+        .or(NaiveDate::parse_from_str(arg, "%Y-%m-%d")
+            .map(|d| d.and_time(NaiveTime::from_hms(0, 0, 0))))
         .or(NaiveDateTime::parse_from_str(arg, "%m-%d %H:%M:%S"))
         .or(NaiveDateTime::parse_from_str(arg, "%m-%d %H:%M:%S"))
         .or(NaiveDateTime::parse_from_str(arg, "%m-%d %H:%M"))
