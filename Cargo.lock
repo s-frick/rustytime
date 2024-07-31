@@ -670,7 +670,7 @@ dependencies = [
 
 [[package]]
 name = "rustytime"
-version = "0.1.3"
+version = "0.1.4-SNAPSHOT"
 dependencies = [
  "chrono",
  "clap",

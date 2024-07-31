@@ -6,6 +6,7 @@ use chrono::{NaiveDateTime, Utc};
 use core::panic;
 use serde::{Deserialize, Serialize};
 use std::{
+    cmp::Ordering,
     fs::{self, File, OpenOptions},
     io::{self, Read, Write},
 };
@@ -153,13 +154,14 @@ impl RTime {
     }
 
     pub fn log(&self, format: Format, from: Option<NaiveDateTime>, to: Option<NaiveDateTime>) {
-        match self
+        let mut filtered_frames = self
             .frames
             .iter()
             .filter(|f| from.map_or(true, |t| f.start >= t) && to.map_or(true, |t| f.end <= t))
-            .collect::<Vec<_>>()
-            .as_slice()
-        {
+            .collect::<Vec<_>>();
+
+        filtered_frames.sort_by(|a, b| a.start.cmp(&b.start));
+        match filtered_frames.as_slice() {
             [] => println!("No frames tracked."),
             xs @ [..] => match format {
                 Format::Pretty => todo!(),

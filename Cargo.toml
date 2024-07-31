@@ -1,7 +1,7 @@
 [package]
 name = "rustytime"
 description = "Rusty Time - A simple time tracking tool"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 authors = ["Sebastian Frick <sebastian.frick@mail.de>"]
 license = "MIT"
